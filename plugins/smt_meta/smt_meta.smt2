@@ -59,8 +59,27 @@ $TERM_DECL$
     (sm.Binary w ($sm_mod_pow_2 x w))
     sm.Stuck))
 
-(define-fun $sm_Binary_and ((w Int) (x1 Int) (x2 Int)) sm.Term
-    sm.Stuck) ; TODO
+(define-fun bit ((x Int) (i Int)) (mod (div x (^ 2 i)) 2))
+(declare-fun $sm_Binary_and (Int Int Int) sm.Term)
+(assert (forall ((w Int) (x1 Int) (x2 Int) 
+(= 
+($mk_Binary_and w x1 x2)
+(sm.Binary 
+  (ite 
+    (and 
+      (distinct w sm.Stuck)
+      (distinct x1 sm.Stuck)
+      (distinct x2 sm.Stuck)
+      (< 0 w)
+      (<= w 32)
+    ) 
+    (ite
+    (= w 1)
+    (ite (and (= ($sm_mod_pow_2 x1) 1) (= ($sm_mod_pow_2 x2) 1)) 1 0)
+    (+ ($mk_Binary_and (- w 1) x1 x2) (* (^ 2 w) (ite (and (= (bit x1 w) 1) (= (bit x2 w) 1)) 1 0)))
+    ) 
+    (sm.Stuck)
+))))))
 
 (define-fun $sm_Binary_or ((w Int) (x1 Int) (x2 Int)) sm.Term
     sm.Stuck) ; TODO
