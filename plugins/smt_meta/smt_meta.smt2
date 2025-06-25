@@ -68,26 +68,26 @@ $TERM_DECL$
   (= ($sm_Binary_and_eval w x1 x2)
     (ite (= w 0) 0
     (ite (= w 1) (ite (and (= x1 1) (= x2 1)) 1 0)
-      (+ ($sm_Binary_and_eval (- w 1) x1 x2) (* (^ 2 w)
+      (+ ($sm_Binary_and_eval (- w 1) x1 x2) (* ($sm_pow2_eval w)
          (ite (and ($sm_bit x1 w) ($sm_bit x2 w)) 1 0))))))))
 
 (define-fun $sm_Binary_and ((w Int) (x1 Int) (x2 Int)) sm.Term
   ($sm_Binary w ($sm_Binary_and_eval w x1 x2)))
 
 (define-fun $sm_Binary_or ((w Int) (x1 Int) (x2 Int)) sm.Term
-    sm.Stuck) ; TODO
+  ($sm_Binary w (- (+ x1 x2) ($sm_Binary_and_eval w x1 x2))))
 
 (define-fun $sm_Binary_xor ((w Int) (x1 Int) (x2 Int)) sm.Term
-    sm.Stuck) ; TODO
+  ($sm_Binary w (- (+ x1 x2) (* 2 ($sm_Binary_and_eval w x1 x2)))))
 
 (define-fun $sm_Binary_not ((w Int) (x1 Int)) sm.Term
-    sm.Stuck) ; TODO
+  ($sm_Binary (- (- ($sm_pow2_eval w) 1) (mod x1 (@sm_pow2_eval w)))))
 
 (define-fun $sm_Binary_concat ((w1 Int) (x1 Int) (w2 Int) (x2 Int)) sm.Term
-    sm.Stuck) ; TODO
+    ($sm_Binary (+ (* (mod x1 ($sm_pow2_eval w1) ($sm_pow2_eval w2)) (mod x2 w2)))))
 
-(define-fun $sm_Binary_extract ((w Int) (x Int) (x1 Int) (x2 Int)) sm.Term
-    sm.Stuck) ; TODO
+(define-fun $sm_Binary_extract ((w Int) (i Int) (j Int) (x Int)) sm.Term
+    (ite (>= i j 0) (mod (div (mod x ($sm_pow2_eval w)) ($sm_pow2_eval j)) ($sm_pow2_eval (+ (- i j) 1))) (sm.Stuck)))
 
 ;;; Core operators
 

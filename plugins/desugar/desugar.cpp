@@ -18,7 +18,7 @@
 namespace ethos {
 
 //std::string s_ds_path = "/mnt/nfs/clasnetappvm/grad/ajreynol/ethos/";
-std::string s_ds_path = "/home/andrew/ethos/";
+std::string s_ds_path = "/home/panda/git/ethos/";
 
 Desugar::Desugar(State& s) : d_state(s), d_tc(s.getTypeChecker())
 {
