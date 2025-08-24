@@ -1015,6 +1015,20 @@
   )
 )
 
+(program $smtx_bvashr ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_bvashr w n1 n2)
+   ($smt_apply_3 "ite" ($smt_apply_3 "=" ($smt_apply_2 "mod" ($smt_apply_2 "div" n1 ($smtx_pow2 ($smt_apply 2 "-" w $smt_builtin_z_one))) $smt_builtin_z_two) $smt_builtin_z_zero) ($smtx_bvlshr w n1 n2) ($smtx_bvnot w ($smtx_bvlshr ($smtx_bvnot w n1) n2))) )
+  )
+)
+
+
+(ite (= ((_ extract |m-1| |m-1|) s) #b0)
+           (bvlshr s t)
+           (bvnot (bvlshr (bvnot s) t)))
+
+
 
 (program $smtx_bvudiv ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
   :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
@@ -1077,37 +1091,84 @@
 )
 
 
+(program $smtx_bvuaddo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_uaddo w n1 n2)
+    ($smt_apply_2 ">=" ($smt_apply_2 "+" n1 n2) ($smtx_pow2 w)))
+  )
+)
+
+(program $smtx_bvsaddo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_saddo w n1 n2)
+    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "+" n1 n2) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "+" n1 n2) ($smt_apply_2 "-" $smt_builtin_z_one w)))
+  )
+))
+
+(program $smtx_bvumulo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_umulo w n1 n2)
+    ($smt_apply_2 ">=" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 w)))
+  )
+)
+
+(program $smtx_bvsmulo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_smulo w n1 n2)
+    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "*" n1 n2) ($smt_apply_2 "-" $smt_builtin_z_one w)))
+  )
+))
+
+
+(program $smtx_bvusubo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_usubo w n1 n2)
+    ($smt_apply_2 "<" n1 n2))
+  )
+)
+
+(program $smtx_bvssubo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_ssubo w n1 n2)
+    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "-" n1 n2) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "-" n1 n2) ($smt_apply_2 "-" $smt_builtin_z_one w)))
+  )
+))
+
+
+(program $smtx_bvnego ((w $smt_builtin_Int) (n1 $smt_builtin_Int) )
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_nego w n1)
+    ($smt_apply_2 "=" n1 ($smtx_bvshl $smt_builtin_z_one ($smt_apply_2 "-" w $smt_builtin_z_one))))
+  )
+)
 
 
 
-bvashr
-bvsdiv
-bvsmod
-bvsrem
-
-bvnego
-bvsaddo
-bvsdivo
-bvsmulo
-bvssubo
-bvuaddo
-bvumulo
-bvusubo
-
-@from_bools
-bvredand
-bvredor
-sbv_to_int
+(program $smtx_bvsdivo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_sdivo w n1 n2)
+    ($smt_apply_2 "and" ($smt_apply_2 "=" n1 ($smtx_bvshl $smt_builtin_z_one ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "=" n2 ($smtx_bvnot w $smt_builtin_z_zero))))
+  )
+)
 
 
 
 
+; bvsdiv, bvsmod, bvsrem should be done like here:
+; https://smt-lib.org/logics-all.shtml#QF_BV
 
 
-
-
-
-
-
-
+; not sure what are these
+; @from_bools
+; bvredand
+; bvredor
+; sbv_to_int
 
