@@ -997,3 +997,60 @@
   (($eo_typeof t)                               ($eo_typeof_main t))
   )
 )
+
+(program $smtx_bvlshr ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_bvlshr w n1 n2)
+    ($smt_apply_2 "div" n1 ($smtx_pow2 n2) ))
+  )
+)
+
+
+(program $smtx_bvshl ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_bvlshr w n1 n2)
+    ($smt_apply_2 "mod" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 w) ))
+  )
+)
+
+bvudiv
+bvurem
+bvashr
+sign_extend
+zero_extend
+bvugt
+bvsgt
+
+
+bvsdiv
+bvsmod
+bvsrem
+
+bvnego
+bvsaddo
+bvsdivo
+bvsmulo
+bvssubo
+bvuaddo
+bvumulo
+bvusubo
+
+@from_bools
+bvredand
+bvredor
+sbv_to_int
+
+
+
+
+
+
+
+
+
+
+
+
+
