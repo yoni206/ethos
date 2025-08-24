@@ -32,7 +32,6 @@ std::ostream& operator<<(std::ostream& o, Kind k)
     case Kind::PROGRAM_CONST: o << "PROGRAM_CONST"; break;
     case Kind::PROOF_RULE: o << "PROOF_RULE"; break;
     case Kind::VARIABLE: o << "VARIABLE"; break;
-    case Kind::ORACLE: o << "ORACLE"; break;
     case Kind::TUPLE: o << "TUPLE"; break;
     case Kind::PROGRAM: o << "PROGRAM"; break;
     case Kind::AS: o << "AS"; break;
@@ -80,6 +79,8 @@ std::ostream& operator<<(std::ostream& o, Kind k)
     case Kind::EVAL_LIST_SETOF: o << "EVAL_LIST_SETOF"; break;
     case Kind::EVAL_LIST_MINCLUDE: o << "EVAL_LIST_MINCLUDE"; break;
     case Kind::EVAL_LIST_MEQ: o << "EVAL_LIST_MEQ"; break;
+    case Kind::EVAL_LIST_DIFF: o << "EVAL_LIST_DIFF"; break;
+    case Kind::EVAL_LIST_INTER: o << "EVAL_LIST_INTER"; break;
     // boolean
     case Kind::EVAL_NOT: o << "EVAL_NOT"; break;
     case Kind::EVAL_AND: o << "EVAL_AND"; break;
@@ -122,7 +123,7 @@ std::string kindToTerm(Kind k)
     case Kind::PROGRAM_TYPE: ss << "eo::arrow"; break;
     case Kind::PROOF_TYPE: ss << "Proof"; break;
     case Kind::BOOL_TYPE: ss << "Bool"; break;
-    case Kind::QUOTE_TYPE: ss << "Quote"; break;
+    case Kind::QUOTE_TYPE: ss << "eo::quote"; break;
     case Kind::TUPLE: ss << "eo::tuple"; break;
     // terms
     case Kind::APPLY: ss << "_"; break;
@@ -171,6 +172,8 @@ std::string kindToTerm(Kind k)
           case Kind::EVAL_LIST_SETOF: ss << "list_setof"; break;
           case Kind::EVAL_LIST_MINCLUDE: ss << "list_minclude"; break;
           case Kind::EVAL_LIST_MEQ: ss << "list_meq"; break;
+          case Kind::EVAL_LIST_DIFF: ss << "list_diff"; break;
+          case Kind::EVAL_LIST_INTER: ss << "list_inter"; break;
           // boolean
           case Kind::EVAL_NOT: ss << "not"; break;
           case Kind::EVAL_AND: ss << "and"; break;
@@ -218,8 +221,7 @@ bool isSymbol(Kind k)
     case Kind::CONST:
     case Kind::PROGRAM_CONST:
     case Kind::PROOF_RULE:
-    case Kind::VARIABLE:
-    case Kind::ORACLE: return true; break;
+    case Kind::VARIABLE: return true; break;
     default: break;
   }
   return false;
@@ -274,6 +276,8 @@ bool isLiteralOp(Kind k)
     case Kind::EVAL_LIST_SETOF:
     case Kind::EVAL_LIST_MINCLUDE:
     case Kind::EVAL_LIST_MEQ:
+    case Kind::EVAL_LIST_DIFF:
+    case Kind::EVAL_LIST_INTER:
     // boolean
     case Kind::EVAL_NOT:
     case Kind::EVAL_AND:
@@ -315,10 +319,8 @@ bool isNaryLiteralOp(Kind k)
     case Kind::EVAL_AND:
     case Kind::EVAL_OR:
     case Kind::EVAL_XOR:
-    case Kind::EVAL_CONCAT:
-      return true;
-    default:
-      break;
+    case Kind::EVAL_CONCAT: return true;
+    default: break;
   }
   return false;
 }
@@ -338,7 +340,9 @@ bool isListLiteralOp(Kind k)
     case Kind::EVAL_LIST_REV:
     case Kind::EVAL_LIST_SETOF:
     case Kind::EVAL_LIST_MINCLUDE:
-    case Kind::EVAL_LIST_MEQ: return true;
+    case Kind::EVAL_LIST_MEQ:
+    case Kind::EVAL_LIST_DIFF:
+    case Kind::EVAL_LIST_INTER: return true;
     default:
       break;
   }

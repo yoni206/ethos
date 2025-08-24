@@ -143,7 +143,7 @@ class Expr
   bool operator==(const Expr& e) const;
   /** Returns true if this expression is not equal to e*/
   bool operator!=(const Expr& e) const;
-  /** */
+  /** Ordering, allows Expr to be used in some std data structures */
   bool operator<(const Expr& e) const;
   /** is null */
   bool isNull() const;
@@ -166,9 +166,16 @@ class Expr
   /** */
   static std::map<const ExprValue*, size_t> computeLetBinding(
       const Expr& e, std::vector<Expr>& ll);
+
  private:
   /** The underlying value */
   ExprValue* d_value;
+  /**
+   * Get the children that should be printed of e.
+   * This is typically the children of e, but handles corner
+   * cases e.g. variables print their types.
+   */
+  static std::vector<Expr> getPrintChildren(const ExprValue* e);
   /** */
   static void printDebugInternal(const Expr& e,
                                  std::ostream& os,

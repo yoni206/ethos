@@ -51,6 +51,12 @@ class TypeChecker
   /** Set type rule for literal kind k to t */
   void setLiteralTypeRule(Kind k, const Expr& t);
   /**
+   * Get or set type rule (to default) for literal kind k. The argument
+   * self is the expression to instantiate eo::self with, if applicable,
+   * otherwise eo::? is used.
+   */
+  Expr getOrSetLiteralTypeRule(Kind k, ExprValue* self = nullptr);
+  /**
    * Evaluate the expression e in the given context.
    */
   Expr evaluate(ExprValue* e, Ctx& ctx);
@@ -98,12 +104,6 @@ class TypeChecker
                               Ctx& newCtx);
   /** Return its type */
   Expr getTypeInternal(ExprValue* e, std::ostream* out);
-  /**
-   * Get or set type rule (to default) for literal kind k. The argument
-   * self is the expression to instantiate eo::self with, if applicable,
-   * otherwise eo::? is used.
-   */
-  Expr getOrSetLiteralTypeRule(Kind k, ExprValue* self = nullptr);
   /** Evaluate literal op */
   Expr evaluateLiteralOpInternal(Kind k, const std::vector<ExprValue*>& args);
   /** Evaluate list rev internal
@@ -154,6 +154,19 @@ class TypeChecker
                                  ExprValue* nil,
                                  bool isLeft,
                                  const std::vector<ExprValue*>& args);
+  /** Evaluate list diff/intersection internal
+   * @param k The kind of application (DIFF or INTER).
+   * @param op The n-ary operator.
+   * @param nil The nil terminator for the operator.
+   * @param isLeft Whether we are :left-assoc-nil (or :right-assoc-nil).
+   * @param args The arguments to the application.
+   * @return The result of the evaluation.
+   */
+  Expr evaluateListDiffInterInternal(Kind k,
+                                     ExprValue* op,
+                                     ExprValue* nil,
+                                     bool isLeft,
+                                     const std::vector<ExprValue*>& args);
   /**
    * Helper for above, starting with ret, append children in hargs to ret,
    * using n-ary operator op, which is :right-assoc-nil or :left-assoc-nil

@@ -28,6 +28,12 @@ Options::Options()
   d_normalizeDecimal = true;
   d_normalizeHexadecimal = true;
   d_normalizeNumeral = false;
+  d_pluginDesugar = false;
+  d_pluginDesugarGenVc = false;
+  d_pluginSmtMeta = false;
+  d_pluginSmtMetaSygus = false;
+  d_pluginTrimDefs = false;
+  d_pluginModelSmt = false;
 }
 
 bool Options::setOption(const std::string& key, bool val)
@@ -71,6 +77,32 @@ bool Options::setOption(const std::string& key, bool val)
   else if (key == "normalize-hex")
   {
     d_normalizeHexadecimal = val;
+  }
+  else if (key == "plugin.desugar")
+  {
+    d_pluginDesugar = true;
+  }
+  else if (key == "plugin.desugar-vc")
+  {
+    d_pluginDesugar = true;
+    d_pluginDesugarGenVc = true;
+  }
+  else if (key == "plugin.smt-meta")
+  {
+    d_pluginSmtMeta = true;
+  }
+  else if (key == "plugin.smt-meta-sygus")
+  {
+    d_pluginSmtMeta = true;
+    d_pluginSmtMetaSygus = true;
+  }
+  else if (key == "plugin.trim-defs")
+  {
+    d_pluginTrimDefs = true;
+  }
+  else if (key == "plugin.model-smt")
+  {
+    d_pluginModelSmt = true;
   }
   else
   {
@@ -127,6 +159,8 @@ State::State(Options& opts, Stats& stats)
   bindBuiltinEval("list_setof", Kind::EVAL_LIST_SETOF);
   bindBuiltinEval("list_minclude", Kind::EVAL_LIST_MINCLUDE);
   bindBuiltinEval("list_meq", Kind::EVAL_LIST_MEQ);
+  bindBuiltinEval("list_diff", Kind::EVAL_LIST_DIFF);
+  bindBuiltinEval("list_inter", Kind::EVAL_LIST_INTER);
   // boolean
   bindBuiltinEval("not", Kind::EVAL_NOT);
   bindBuiltinEval("and", Kind::EVAL_AND);
@@ -186,7 +220,6 @@ State::State(Options& opts, Stats& stats)
   d_any = Expr(mkExpr(Kind::ANY, {}));
   // self is a distinguished parameter
   d_self = Expr(mkSymbolInternal(Kind::PARAM, "eo::self", d_any));
-  bind("eo::self", d_self);
   d_conclusion =
       Expr(mkSymbolInternal(Kind::PARAM, "eo::conclusion", d_boolType));
   // eo::conclusion is not globally bound, since it can only appear
@@ -313,7 +346,7 @@ bool State::includeFile(const std::string& s, bool isSignature, bool isReference
   if (d_plugin!=nullptr)
   {
     Assert (!isReference);
-    d_plugin->includeFile(inputPath, isReference, referenceNf);
+    d_plugin->includeFile(inputPath, isSignature, isReference, referenceNf);
   }
   Trace("state") << "Include " << inputPath << std::endl;
   Assert (getAssumptionLevel()==0);
@@ -334,6 +367,12 @@ bool State::includeFile(const std::string& s, bool isSignature, bool isReference
                << " did not preserve assumption scope. The most recent open "
                   "assumption was "
                << d_decls[d_declsSizeCtx.back()] << ".";
+  }
+  if (d_plugin != nullptr)
+  {
+    Assert(!isReference);
+    d_plugin->finalizeIncludeFile(
+        inputPath, isSignature, isReference, referenceNf);
   }
   return true;
 }
@@ -524,29 +563,11 @@ Expr State::mkFunctionType(const std::vector<Expr>& args, const Expr& ret, bool 
     return Expr(mkExprInternal(Kind::FUNCTION_TYPE, atypes));
   }
   Expr curr = ret;
-  Kind rk = ret.getKind();
-  if (rk==Kind::EVAL_REQUIRES)
-  {
-    Expr currBase = ret;
-    do
-    {
-      currBase = currBase[2];
-      rk = currBase.getKind();
-    }while (rk==Kind::EVAL_REQUIRES);
-  }
   // no way to construct quote types, e.g. on return types
-  Assert (rk!=Kind::QUOTE_TYPE);
+  Assert (ret.getKind()!=Kind::QUOTE_TYPE);
   for (size_t i=0, nargs = args.size(); i<nargs; i++)
   {
     Expr a = args[(nargs-1)-i];
-    // process arguments
-    Kind ak = a.getKind();
-    while (ak == Kind::EVAL_REQUIRES)
-    {
-      curr = mkRequires(a[0], a[1], curr);
-      a = a[2];
-      ak = a.getKind();
-    }
     // append the function
     curr = Expr(
         mkExprInternal(Kind::FUNCTION_TYPE, {a.getValue(), curr.getValue()}));
@@ -580,13 +601,7 @@ Expr State::mkRequires(const std::vector<Expr>& args, const Expr& ret)
 
 Expr State::mkRequires(const Expr& a1, const Expr& a2, const Expr& ret)
 {
-  if (a1==a2)
-  {
-    // trivially equal to return
-    return ret;
-  }
-  return Expr(mkExprInternal(Kind::EVAL_REQUIRES,
-                             {a1.getValue(), a2.getValue(), ret.getValue()}));
+  return Expr(mkExpr(Kind::EVAL_REQUIRES, {a1, a2, ret}));
 }
 
 Expr State::mkBoolType()
@@ -737,7 +752,7 @@ Expr State::mkExpr(Kind k, const std::vector<Expr>& children)
         Warning() << "Wrong number of arguments when applying " << Expr(hd) << std::endl;
       }
     }
-    else if (hk==Kind::PROGRAM_CONST || hk==Kind::ORACLE)
+    else if (hk == Kind::PROGRAM_CONST)
     {
       // have to check whether we have marked the constructor kind, which is
       // not the case i.e. if we are constructing applications corresponding to
@@ -770,7 +785,7 @@ Expr State::mkExpr(Kind k, const std::vector<Expr>& children)
     // The exceptions to this are operators whose types are not flattened (programs and proof rules).
     if (children.size()>2)
     {
-      if (hk!=Kind::PROGRAM_CONST && hk!=Kind::PROOF_RULE && hk!=Kind::ORACLE)
+      if (hk != Kind::PROGRAM_CONST && hk != Kind::PROOF_RULE)
       {
         // return the curried version
         return Expr(mkApplyInternal(vchildren));
@@ -779,20 +794,19 @@ Expr State::mkExpr(Kind k, const std::vector<Expr>& children)
   }
   else if (isLiteralOp(k))
   {
-    // this transforms e.g. (eo::add t1 t2 t3) into (eo::add (eo::add t1 t2) t3).
-    if (isNaryLiteralOp(k) && vchildren.size()>2)
+    // this transforms e.g. (eo::add t1 t2 t3) into (eo::add (eo::add t1 t2)
+    // t3).
+    if (isNaryLiteralOp(k) && vchildren.size() > 2)
     {
-      std::vector<ExprValue*> cc{nullptr, nullptr};
-      cc[0] = vchildren[0];
-      cc[1] = vchildren[1];
-      ExprValue* curr = mkExprInternal(k, cc);
-      for (size_t i=2, nargs = vchildren.size(); i<nargs; i++)
+      std::vector<Expr> cc{children[0], children[1]};
+      Expr curr = mkExpr(k, cc);
+      for (size_t i = 2, nargs = vchildren.size(); i < nargs; i++)
       {
         cc[0] = curr;
-        cc[0] = vchildren[i];
-        curr = mkExprInternal(k, cc);
+        cc[1] = children[i];
+        curr = mkExpr(k, cc);
       }
-      return Expr(curr);
+      return curr;
     }
     // only if correct arity, else we will catch the type error
     bool isArityOk = TypeChecker::checkArity(k, vchildren.size());
@@ -804,7 +818,7 @@ Expr State::mkExpr(Kind k, const std::vector<Expr>& children)
     else
     {
       Warning() << "Wrong number of arguments when applying literal op " << k
-                << ", " << children.size() << " arguments " << children[0] << " " << children[1] << std::endl;
+                << ", " << children.size() << std::endl;
     }
   }
   else if (k == Kind::AS_RETURN)
@@ -858,6 +872,16 @@ Expr State::mkExpr(Kind k, const std::vector<Expr>& children)
         return reto;
       }
     }
+  }
+  return Expr(mkExprInternal(k, vchildren));
+}
+
+Expr State::mkExprSimple(Kind k, const std::vector<Expr>& children)
+{
+  std::vector<ExprValue*> vchildren;
+  for (const Expr& c : children)
+  {
+    vchildren.push_back(c.getValue());
   }
   return Expr(mkExprInternal(k, vchildren));
 }
@@ -1385,18 +1409,6 @@ Expr State::getProgram(const ExprValue* ev)
   }
   return d_null;
 }
-bool State::getOracleCmd(const ExprValue* oracle, std::string& ocmd)
-{
-  AppInfo* ainfo = getAppInfo(oracle);
-  if (ainfo!=nullptr && ainfo->d_attrCons==Attr::ORACLE)
-  {
-    Expr oexpr = ainfo->d_attrConsTerm;
-    Assert(!oexpr.isNull());
-    ocmd = oexpr.getSymbol();
-    return true;
-  }
-  return false;
-}
 
 size_t State::getAssumptionLevel() const
 {
@@ -1537,6 +1549,19 @@ void State::defineProgram(const Expr& v, const Expr& prog)
   }
 }
 
+void State::echo(const std::string& msg)
+{
+  if (d_plugin != nullptr)
+  {
+    if (!d_plugin->echo(msg))
+    {
+      // the plugin processed the echo
+      return;
+    }
+  }
+  std::cout << msg << std::endl;
+}
+
 bool State::markConstructorKind(const Expr& v, Attr a, const Expr& cons)
 {
   // If marking an annotated parameter, we mark the parameter it annotates.
@@ -1545,24 +1570,6 @@ bool State::markConstructorKind(const Expr& v, Attr a, const Expr& cons)
     return markConstructorKind(v[0], a, cons);
   }
   Expr acons = cons;
-  if (a==Attr::ORACLE)
-  {
-    // use full path
-    std::string ocmd = cons.getSymbol();
-
-    Filepath inputPath = d_inputFile.parentPath();
-    inputPath.append(Filepath(ocmd));
-    inputPath.makeCanonical();
-
-    if (!inputPath.exists())
-    {
-      Warning() << "State:: could not include \"" + ocmd
-                       + "\" for oracle definition"
-                << std::endl;
-      return false;
-    }
-    acons = mkLiteral(Kind::STRING, inputPath.getRawPath());
-  }
   Assert (isSymbol(v.getKind()));
   AppInfo& ai = d_appData[v.getValue()];
   if (ai.d_attrCons != Attr::NONE)

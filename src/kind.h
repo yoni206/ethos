@@ -50,7 +50,6 @@ enum class Kind
   PROGRAM_CONST,
   PROOF_RULE,
   VARIABLE,
-  ORACLE,
 
   // literals
   BOOLEAN,
@@ -94,6 +93,8 @@ enum class Kind
   EVAL_LIST_SETOF,
   EVAL_LIST_MINCLUDE,
   EVAL_LIST_MEQ,
+  EVAL_LIST_DIFF,
+  EVAL_LIST_INTER,
   // boolean
   EVAL_NOT,
   EVAL_AND,
@@ -134,7 +135,10 @@ bool isSymbol(Kind k);
 bool isLiteral(Kind k);
 /** */
 bool isLiteralOp(Kind k);
-/** */
+/**
+ * Is k a n-ary literal op? In other words, can k be applied to 2+ children
+ * in the front-end language. True for eo::add, eo::concat, eo::and, etc.
+ */
 bool isNaryLiteralOp(Kind k);
 /** Is k a list literal operator? */
 bool isListLiteralOp(Kind k);

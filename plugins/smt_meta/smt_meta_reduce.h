@@ -6,131 +6,160 @@
  * All rights reserved.  See the file COPYING in the top-level source
  * directory for licensing information.
  ******************************************************************************/
-#ifndef SMT_META_REDUCE_H
-#define SMT_META_REDUCE_H
+#ifndef PLUGIN_SMT_META_REDUCE_H
+#define PLUGIN_SMT_META_REDUCE_H
 
 #include <map>
 #include <set>
 #include <sstream>
 #include <string>
 
-#include "plugin.h"
-#include "expr_info.h"
-#include "expr_trie.h"
-#include "type_checker.h"
+#include "../std_plugin.h"
+#include "smt_meta_sygus.h"
+#include "utils.h"
 
 namespace ethos {
 
 class State;
 class TypeChecker;
 
+/** A utility for printing conjunctions */
+class ConjPrint
+{
+ public:
+  ConjPrint();
+  void push(const std::string& str);
+  void printConjunction(std::ostream& os, bool isDisj = false);
+  std::stringstream d_ss;
+  size_t d_npush;
+};
+
 class SelectorCtx
 {
-public:
-  SelectorCtx() : d_counter(0) {}
-  std::string push(const std::string& next)
-  {
-    d_counter++;
-    std::stringstream ss;
-    ss << "z" << d_counter;
-    d_letBegin << "(let ((z" << d_counter << " " << next << ")) ";
-    d_letEnd << ")";
-    return ss.str();
-  }
+ public:
+  SelectorCtx();
+  void clear();
+  /**
+   * Maps parameters to a string representation of what
+   * that parameter was mapped to. This is a chain of
+   * datatype selectors, where we do not model the AST
+   * of this chain.
+   */
   std::map<Expr, std::string> d_ctx;
-  std::stringstream d_letBegin;
-  std::stringstream d_letEnd;
-  size_t d_counter;
+  /** The context it was matched in */
+  std::map<Expr, MetaKind> d_tctx;
 };
 
 /**
  */
-class SmtMetaReduce : public Plugin
+class SmtMetaReduce : public StdPlugin
 {
-  friend class TypeChecker;
-public:
+ public:
   SmtMetaReduce(State& s);
   ~SmtMetaReduce();
-  /** Intialize */
-  void initialize() override;
-  /** Reset */
-  void reset() override;
-  /** Push scope */
-  void pushScope() override;
-  /** Pop scope */
-  void popScope() override;
-  /** include file, if not already done */
-  void includeFile(const Filepath& s, bool isReference, const Expr& referenceNf) override;
-  /** Set type rule for literal kind k to t */
-  void setLiteralTypeRule(Kind k, const Expr& t) override;
-  /** */
-  void bind(const std::string& name, const Expr& e) override;
-  /** Mark attributes */
-  void markConstructorKind(const Expr& v, Attr a, const Expr& cons) override;
-  /** Mark oracle command */
-  void markOracleCmd(const Expr& v, const std::string& ocmd) override;
   /** Define program */
   void defineProgram(const Expr& v, const Expr& prog) override;
+  /** */
+  void bind(const std::string& name, const Expr& e) override;
   /** Finalize */
   void finalize() override;
-  /** To string, which returns the smt2 formalization of the meta-level correctness of the signature */
-  std::string toString();
-private:
-  void printConjunction(size_t n, const std::string& conj, std::ostream& os, const SelectorCtx& ctx);
-  bool printEmbPatternMatch(const Expr& c, const std::string& initCtx, std::ostream& os, SelectorCtx& ctx, size_t& nconj);
-  bool printEmbAtomicTerm(const Expr& c, std::ostream& os);
-  bool printEmbTerm(const Expr& c, std::ostream& os, const SelectorCtx& ctx, bool ignorePf = false);
+  /**
+   */
+  bool echo(const std::string& msg) override;
+
+  bool printMetaType(const Expr& t,
+                     std::ostream& os,
+                     MetaKind tctx = MetaKind::NONE) const;
+  /** Get the name of expression e, expected to be an atomic term */
+  static std::string getName(const Expr& e);
+  /** Is e a datatype constructor embedding? */
+  static bool isEmbedCons(const Expr& e);
+  /**
+   * Return the "meta-kind" of a type typ, based on its naming convention
+   * introduced in the model_smt layer. In other words, we return the datatype
+   * that typ represents if applicable, SMT_BUILTIN if typ refers to a builtin
+   * SMT-LIB type, or elseKind otherwise.
+   * @param typ The given type.
+   * @param elseKind The returned kind if typ does not have a special meaning.
+   * @return The meta-kind of typ, or elseKind otherwise.
+   */
+  MetaKind getTypeMetaKind(const Expr& typ,
+                           MetaKind elseKind = MetaKind::EUNOIA) const;
+  /**
+   * Get the meta kind of the type of expression e, or else kind otherwise.
+   * In other words, we return the datatype that e is a constructor of in the
+   * final embedding, SMT_BUILTIN if e is a builtin SMT-LIB application, or
+   * elseKind otherwise.
+   * @param s Reference to the state
+   * @param e The given expression.
+   * @param cname Updated to the root name of the constructor.
+   * @return The meta-kind of the type of e, or elseKind otherwise.
+   */
+  MetaKind getMetaKind(State& s, const Expr& e, std::string& cname) const;
+
+ private:
+  MetaKind prefixToMetaKind(const std::string& str) const;
+  bool printEmbPatternMatch(const Expr& c,
+                            const std::string& initCtx,
+                            std::ostream& os,
+                            SelectorCtx& ctx,
+                            ConjPrint& print,
+                            MetaKind tinit = MetaKind::NONE);
+  void printEmbAtomicTerm(const Expr& c,
+                          std::ostream& os,
+                          MetaKind tctx = MetaKind::NONE);
+  bool printEmbTerm(const Expr& c,
+                    std::ostream& os,
+                    const SelectorCtx& ctx,
+                    MetaKind tinit = MetaKind::NONE);
   void finalizePrograms();
   void finalizeProgram(const Expr& v, const Expr& prog);
-  void finalizeDeclarations();
-  void finalizeRule(const Expr& v);
-  void finalizeRules();
-  /** Does t have subterm s? */
-  static bool hasSubterm(const Expr& t, const Expr& s);
-  State& d_state;
-  /** the type checker */
-  TypeChecker& d_tc;
-  /** Declares seen */
-  std::set<Expr> d_declSeen;
-  /** Rules seen */
-  std::set<Expr> d_ruleSeen;
+  void finalizeDecl(const Expr& e);
+  static bool isProgram(const Expr& t);
+  static bool isSmtApplyApp(const Expr& oApp);
+  static std::string getEmbedName(const Expr& oApp);
   /** Program declarations processed */
   std::set<Expr> d_progDeclProcessed;
   /** Programs seen */
   std::vector<std::pair<Expr, Expr>> d_progSeen;
-  /** Attributes marked */
-  std::map<Expr, std::pair<Attr, Expr>> d_attrDecl;
-  /** Handles overloading */
-  std::map<std::string, size_t> d_overloadCount;
-  /** */
-  std::map<Expr, size_t> d_overloadId;
-  /** */
-  Expr d_eoTmpInt;
-  Expr d_eoTmpNil;
   /** Common constants */
-  Expr d_listNil;
-  Expr d_listCons;
-  Expr d_listType;
-  /** Number of current scopes. Bindings at scope>0 are not remembered */
-  size_t d_nscopes;
-  std::stringstream d_termDecl;
-  std::stringstream d_termDeclEnd;
+  Expr d_null;
+  std::map<std::string, MetaKind> d_prefixToMetaKind;
+  std::map<std::string, MetaKind> d_typeToMetaKind;
   std::stringstream d_defs;
-  std::stringstream d_rules;
-  std::stringstream d_eval;
-
-  std::stringstream d_eoNilVarList;
-  std::stringstream d_eoNil;
-  std::stringstream d_eoNilEnd;
-  std::stringstream d_eoTypeof;
-  std::stringstream d_eoTypeofLit;
-  std::stringstream d_eoTypeofEnd;
-  std::stringstream d_eoDtSelectors;
-  std::stringstream d_eoDtConstructors;
-
-  bool d_inInitialize;
+  std::stringstream d_smtVc;
+  // SMT-LIB term embedding
+  std::stringstream d_embedTypeDt;
+  std::stringstream d_embedTermDt;
+  std::stringstream d_embedEoTermDt;
+  std::stringstream d_embedValueDt;
+  /** */
+  std::map<std::pair<Expr, size_t>, MetaKind> d_metaKindArg;
+  /** Declares seen */
+  std::set<Expr> d_declSeen;
+  /** */
+  bool isSmtLibExpression(MetaKind ctx);
+  /**
+   */
+  bool isProgramApp(const Expr& app);
+  /**
+   * This returns the expected meta-kind for the i^th child of
+   * parent. It should not depend on parent[i] at all.
+   */
+  MetaKind getMetaKindArg(const Expr& parent, size_t i, MetaKind parentCtx);
+  /**
+   * Returns the result of calling the above method for all
+   * children i of parent.
+   */
+  std::vector<MetaKind> getMetaKindArgs(const Expr& parent, MetaKind parentCtx);
+  /**
+   * Get the meta-kind returned by a child.
+   */
+  MetaKind getMetaKindReturn(const Expr& child, MetaKind parentCtx);
+  /************* sygus *********/
+  SmtMetaSygus d_smSygus;
 };
 
 }  // namespace ethos
 
-#endif /* COMPILER_H */
+#endif
