@@ -998,6 +998,15 @@
   )
 )
 
+
+(program $smtx_bvshl ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_bvshl w n1 n2)
+    ($smt_apply_2 "mod" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 w) ))
+  )
+)
+
 (program $smtx_bvlshr ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
   :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
   (
@@ -1007,23 +1016,71 @@
 )
 
 
-(program $smtx_bvshl ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+(program $smtx_bvudiv ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
   :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
   (
-  (($smtx_bvlshr w n1 n2)
-    ($smt_apply_2 "mod" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 w) ))
+  (($smtx_bvudiv w n1 n2)
+    ($smt_apply_3 "ite" ($smt_apply_2 "=" n2 $smt_builtin_z_zero) ($smt_apply_2 "-" ($smtx_pow2 w) $smt_builtin_z_one) ($smt_apply_2 "div" n1 n2) )
+  )
   )
 )
 
-bvudiv
-bvurem
+
+(program $smtx_bvurem ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_bvurem w n1 n2)
+    ($smt_apply_3 "ite" ($smt_apply_2 "=" n2 $smt_builtin_z_zero) n1 ($smt_apply_2 "div" n1 n2))
+  )
+  )
+)
+
+
+; take a bv n1 of width w and extend it with n2 zeros
+(program $smtx_zero_extend ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_zero_extend w n1 n2)
+    n1
+  )
+  )
+)
+
+; take a bv n1 of width w and extend it n2 times according to the sign bit of n1
+(program $smtx_sign_extend ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Int
+  (
+  (($smtx_sign_extend w n1 n2)
+    ($smt_apply_3 "ite" ($smt_apply_2 "=" ($smt_apply_2 "mod" ($smt_apply_2 "div" n1 ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) $smt_builtin_z_two) $smt_builtin_z_one) ($smt_apply_2 "+" ($smt_apply_2 "*" ($smt_apply_2 "-" ($smtx_pow2 n2) $smt_builtin_z_one) ($smtx_pow2 w)) n1 ) n1 )
+  )
+  )
+)
+
+
+(program $smtx_bvugt ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_bvugt w n1 n2)
+    ($smt_apply_2 ">" n1 n2 ))
+  )
+)
+
+
+; based on:
+; https://github.com/cvc5/cvc5/blob/main/src/theory/bv/theory_bv_rewriter.cpp#L233
+(program $smtx_bvsgt ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+  (
+  (($smtx_bvsgt w n1 n2)
+    ($smtx_bvugt w ($smt_apply 2 "+" n1 ($smtx_pow2 ($smt_apply 2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "+" n2 ($smt_apply 2 "-" w $smt_builtin_z_one))))
+  )
+)
+
+
+
+
+
 bvashr
-sign_extend
-zero_extend
-bvugt
-bvsgt
-
-
 bvsdiv
 bvsmod
 bvsrem
