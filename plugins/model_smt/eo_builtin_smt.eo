@@ -1099,11 +1099,17 @@
   )
 )
 
+(program uts ((w $smt_builtin_Int) (n $smt_builtin_Int))
+  :signature ($smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
+(
+( ($uts w n) ($smt_apply_2 "-" ($smt_apply_2 "*" $smt_builtin_z_two ($smt_apply_2 "mod" n ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ) n))
+))
+
 (program $smtx_bvsaddo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
   :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
   (
   (($smtx_saddo w n1 n2)
-    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "+" n1 n2) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "+" n1 n2) ($smt_apply_2 "-" $smt_builtin_z_one w)))
+    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "+" ($uts n1) ($uts n2)) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "+" (uts n1) (uts n2)) ($smt_apply_2 "-" $smt_builtin_z_one w)))
   )
 ))
 
@@ -1118,8 +1124,8 @@
 (program $smtx_bvsmulo ((w $smt_builtin_Int) (n1 $smt_builtin_Int) (n2 $smt_builtin_Int))
   :signature ($smt_builtin_Int $smt_builtin_Int $smt_builtin_Int) $smt_builtin_Bool
   (
-  (($smtx_smulo w n1 n2)
-    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "*" n1 n2) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "*" n1 n2) ($smt_apply_2 "-" $smt_builtin_z_one w)))
+  (($smtx_smulo w (uts n1) (uts n2))
+    ($smt_apply_2 "or" ($smt_apply_2 ">=" ($smt_apply_2 "*" (uts n1) (uts n2)) ($smtx_pow2 ($smt_apply_2 "-" w $smt_builtin_z_one))) ($smt_apply_2 "<" ($smt_apply_2 "*" (uts n1 ) (uts n2)) ($smt_apply_2 "-" $smt_builtin_z_one w)))
   )
 ))
 
